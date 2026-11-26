@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import PluginManager from '../../components/operator/PluginManager.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="Plugins">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>Plugins</h1>
+      <p>Inspect and manage discovered server plugins and their update scheduler.</p>
+    </header>
+    <PluginManager client:load />
+  </main>
+</DashboardLayout>
