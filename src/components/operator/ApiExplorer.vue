@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { contracts } from '../../lib/api-contracts';
+import { computed, ref } from 'vue';
+import { contractGroups, type EndpointDoc } from '../../lib/api-contracts';
 import ConfirmDialog from '../ui/ConfirmDialog.vue';
 import JsonEditor from '../ui/JsonEditor.vue';
+import EndpointCard from './EndpointCard.vue';
 
 const method = ref('GET');
 const path = ref('/api/v1/stats');
@@ -16,6 +17,9 @@ const status = ref('');
 const error = ref('');
 const busy = ref(false);
 const pendingTarget = ref<URL | null>(null);
+const filterQuery = ref('');
+const expandedIds = ref<Set<string>>(new Set());
+const builderRef = ref<HTMLElement | null>(null);
 
 const examples = [
     'Authorization: Bearer <management-token>',
@@ -23,12 +27,48 @@ const examples = [
     'curl -N -H "Authorization: Bearer <client-secret>" \\\n  -H "X-Substratum-Client: survey-worker" http://127.0.0.1:4321/api/v1/events',
 ];
 
-function choose(item: typeof contracts[number]['entries'][number]) {
+const filteredGroups = computed(() => {
+    const query = filterQuery.value.trim().toLowerCase();
+    if (!query) return contractGroups;
+    return contractGroups
+        .map(group => ({
+            ...group,
+            entries: group.entries.filter(entry =>
+                entry.path.toLowerCase().includes(query) ||
+                entry.method.toLowerCase().includes(query) ||
+                entry.summary.toLowerCase().includes(query) ||
+                entry.description.toLowerCase().includes(query),
+            ),
+        }))
+        .filter(group => group.entries.length > 0);
+});
+
+function toggleCard(id: string) {
+    const next = new Set(expandedIds.value);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    expandedIds.value = next;
+}
+
+function expandAll() {
+    const next = new Set<string>();
+    for (const group of filteredGroups.value) {
+        for (const entry of group.entries) next.add(entry.id);
+    }
+    expandedIds.value = next;
+}
+
+function collapseAll() {
+    expandedIds.value = new Set();
+}
+
+function choose(item: EndpointDoc) {
     method.value = item.method;
-    path.value = item.path;
-    body.value = item.body ? JSON.stringify(item.body, null, 2) : '';
+    path.value = item.loadPath;
+    body.value = item.requestExample ?? '';
     confirmation.value = item.confirmation ?? '';
     error.value = '';
+    builderRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function submit() {
@@ -112,7 +152,7 @@ async function execute(target: URL) {
       @confirm="pendingTarget && execute(pendingTarget)"
     />
 
-    <section class="workspace-panel">
+    <section ref="builderRef" class="workspace-panel">
       <h2>Request builder</h2>
       <form class="workspace-stack" @submit.prevent="submit">
         <div class="workspace-fields">
@@ -148,20 +188,64 @@ async function execute(target: URL) {
       <pre v-for="example in examples" :key="example">{{ example }}</pre>
     </section>
 
-    <section v-for="group in contracts" :key="group.title" class="workspace-panel">
-      <h2>{{ group.title }}</h2>
-      <div class="workspace-table-scroll">
-        <table class="workspace-table">
-          <thead><tr><th>Method and path</th><th>Response and usage</th><th>Action</th></tr></thead>
-          <tbody>
-            <tr v-for="item in group.entries" :key="item.method + item.path">
-              <th scope="row"><code>{{ item.method }} {{ item.path }}</code></th>
-              <td>{{ item.returns }}</td>
-              <td><button @click="choose(item)">Load</button></td>
-            </tr>
-          </tbody>
-        </table>
+    <section class="workspace-panel">
+      <div class="workspace-panel-header">
+        <h2>Endpoint reference</h2>
+        <a class="workspace-button" href="/api/v1/openapi.json" target="_blank" rel="noopener">OpenAPI 3.1 JSON</a>
       </div>
+      <div class="explorer-toolbar">
+        <input
+          v-model="filterQuery"
+          type="search"
+          placeholder="Filter endpoints by path, method, or description..."
+          aria-label="Filter endpoints"
+        />
+        <div class="workspace-actions">
+          <button type="button" @click="expandAll">Expand all</button>
+          <button type="button" @click="collapseAll">Collapse all</button>
+        </div>
+      </div>
+    </section>
+
+    <section v-for="group in filteredGroups" :key="group.title" class="workspace-panel">
+      <div class="workspace-panel-header">
+        <h2>{{ group.title }}</h2>
+        <span>{{ group.entries.length }} endpoints</span>
+      </div>
+      <p class="group-desc">{{ group.description }}</p>
+      <div class="endpoint-list">
+        <EndpointCard
+          v-for="item in group.entries"
+          :key="item.id"
+          :endpoint="item"
+          :expanded="expandedIds.has(item.id)"
+          @toggle="toggleCard(item.id)"
+          @load="choose"
+        />
+      </div>
+    </section>
+
+    <section v-if="!filteredGroups.length" class="workspace-panel">
+      <p>No endpoints match "{{ filterQuery }}".</p>
     </section>
   </div>
 </template>
+
+<style scoped>
+.explorer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.explorer-toolbar input {
+  flex: 1 1 260px;
+}
+.group-desc {
+  margin: -6px 0 14px;
+}
+.endpoint-list {
+  display: grid;
+  gap: 10px;
+}
+</style>

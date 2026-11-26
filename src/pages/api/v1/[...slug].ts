@@ -11,6 +11,7 @@ import { cellPage, contentPage } from '../../../lib/catalog';
 import { recordQuery } from '../../../lib/metrics';
 import { activitySnapshot, addActivity, queryActivity, subscribeActivity } from '../../../lib/activity/journal';
 import { createBackup } from '../../../lib/operations';
+import { openApiSpec } from '../../../lib/openapi';
 
 const MAX_RESULTS = 1000;
 const encoder = new TextEncoder();
@@ -89,6 +90,7 @@ async function route(request: Request, slug: string, auth?: AuthResult): Promise
     try {
         const path = `/api/v1/${slug}`.replace(/\/$/, '');
         const server = await getRuntime();
+        if (path === '/api/v1/openapi.json' && request.method === 'GET') return jsonResponse(openApiSpec);
         if (path === '/api/v1/stats' && request.method === 'GET') {
             const view = new URL(request.url).searchParams.get('view');
             if (view && auth?.method === 'client') return jsonResponse({ error: 'Management access required.' }, 403);
