@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import ActivityFeed from '../../components/events/ActivityFeed.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="Events & Activity">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>Events &amp; Activity</h1>
+      <p>Inspect live runtime events and emit custom domain events.</p>
+    </header>
+    <ActivityFeed client:load />
+  </main>
+</DashboardLayout>

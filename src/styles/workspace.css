@@ -1,0 +1,143 @@
+.workspace-page {
+  --workspace-muted: var(--text-secondary);
+  --workspace-border: var(--border-subtle);
+  --workspace-accent: var(--accent);
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: clamp(20px, 3vw, 36px);
+}
+.workspace-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-bottom: 22px;
+}
+.workspace-heading h1 { margin: 0; font-size: clamp(24px, 3vw, 30px); letter-spacing: -0.03em; }
+.workspace-page p { color: var(--text-secondary); font-size: 13px; line-height: 1.55; }
+.workspace-heading p { margin: 6px 0 0; }
+.workspace-stack { display: grid; gap: 16px; min-width: 0; }
+.workspace-panel {
+  min-width: 0;
+  padding: clamp(16px, 2vw, 22px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.workspace-panel h2 { margin: 0 0 14px; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.workspace-panel h3 { margin: 14px 0 8px; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.workspace-page label { display: grid; gap: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 500; min-width: 0; }
+.workspace-page input:not([type='checkbox']),
+.workspace-page textarea,
+.workspace-page select {
+  width: 100%;
+  min-width: 0;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+.workspace-page input:focus,
+.workspace-page textarea:focus,
+.workspace-page select:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.workspace-page button, .workspace-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+.workspace-page button:hover:not(:disabled), .workspace-button:hover { border-color: var(--accent); background: var(--bg-hover); }
+.workspace-page button:disabled { opacity: 0.5; cursor: not-allowed; }
+.workspace-page .workspace-primary { background: var(--accent-strong); border-color: var(--accent); color: #fff; }
+.workspace-page .workspace-primary:hover:not(:disabled) { background: #7b6cf0; }
+.workspace-page .workspace-danger { background: rgba(140, 42, 62, 0.45); border-color: rgba(240, 123, 130, 0.55); color: #ffd4d8; }
+.workspace-page .workspace-danger:hover:not(:disabled) { background: rgba(168, 49, 73, 0.65); border-color: var(--danger); }
+.workspace-page :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.workspace-inline, .workspace-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.workspace-inline label { flex: 0 1 320px; }
+.workspace-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin: 12px 0; }
+.workspace-actions.compact { flex-wrap: nowrap; }
+.workspace-table-scroll { overflow-x: auto; }
+.workspace-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.workspace-table th, .workspace-table td { border-bottom: 1px solid var(--border-subtle); padding: 10px 8px; vertical-align: middle; }
+.workspace-table thead { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.workspace-table tbody tr:last-child > * { border-bottom: 0; }
+.workspace-table th[scope='row'] { overflow-wrap: anywhere; font-weight: 500; }
+.workspace-page .workspace-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(240, 123, 130, 0.45);
+  background: var(--danger-soft);
+  color: #ffc8cc;
+  font-size: 13px;
+}
+.workspace-page .workspace-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(88, 213, 186, 0.45);
+  background: var(--teal-soft);
+  color: #c5f7ea;
+  font-size: 13px;
+}
+.workspace-panel a:not(.workspace-button) { color: var(--accent); }
+.workspace-pages { margin-top: 12px; align-items: center; color: var(--text-secondary); font-size: 13px; }
+.workspace-panel textarea { resize: vertical; min-height: 110px; font-family: var(--font-mono); font-size: 12px; }
+.workspace-panel code, .workspace-panel pre { font-family: var(--font-mono); overflow-wrap: anywhere; }
+.workspace-panel pre {
+  margin: 10px 0 0;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  white-space: pre-wrap;
+  max-height: 460px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.workspace-panel label.workspace-check { display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; }
+.workspace-panel .inline-links { display: flex; flex-wrap: wrap; gap: 10px; padding: 0; list-style: none; }
+.workspace-panel .monospace { font-family: var(--font-mono); }
+.workspace-panel summary { cursor: pointer; color: var(--text-primary); }
+.workspace-panel fieldset { margin: 14px 0; min-width: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; }
+.workspace-panel fieldset legend { padding: 0 6px; font-size: 12px; color: var(--text-secondary); }
+.workspace-panel-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 14px; }
+.workspace-panel-header h2 { margin: 0; margin-right: auto; }
+.workspace-panel-header > span { color: var(--text-secondary); font-size: 12px; }
+
+/* Status badges & tags */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font: 600 11px var(--font-mono);
+}
+.badge.ok { border-color: rgba(88, 213, 186, 0.45); background: var(--teal-soft); color: var(--teal); }
+.badge.warn { border-color: rgba(240, 184, 101, 0.45); background: var(--warn-soft); color: var(--warn); }
+.badge.err { border-color: rgba(240, 123, 130, 0.45); background: var(--danger-soft); color: var(--danger); }
+.badge.accent { border-color: rgba(139, 124, 255, 0.45); background: var(--accent-soft); color: #cfc7ff; }

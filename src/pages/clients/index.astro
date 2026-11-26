@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import ClientManagement from '../../components/clients/ClientManagement.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="Clients & Credentials">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>Clients &amp; Credentials</h1>
+      <p>Issue and manage credentials for applications using the Substratum API.</p>
+    </header>
+    <ClientManagement client:load />
+  </main>
+</DashboardLayout>

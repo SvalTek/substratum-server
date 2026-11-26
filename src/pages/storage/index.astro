@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import StorageManager from '../../components/operator/StorageManager.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="Storage">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>Storage</h1>
+      <p>Inspect SQLite, manage snapshots and validate the persisted world.</p>
+    </header>
+    <StorageManager client:load />
+  </main>
+</DashboardLayout>

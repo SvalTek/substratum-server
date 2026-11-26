@@ -1,0 +1,33 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Sign in · Substratum Server">
+  <main class="login-wrap">
+    <form id="login-form" class="login-card">
+      <div class="login-brand">
+        <span class="login-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div>
+          <p class="eyebrow">SUBSTRATUM SERVER</p>
+          <h1>Sign in</h1>
+        </div>
+      </div>
+      <p class="login-copy">Enter the dashboard password configured for this instance.</p>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024" autofocus>
+      <button type="submit">Continue <span aria-hidden="true">→</span></button>
+      <p id="login-error" class="login-error" aria-live="polite"></p>
+    </form>
+  </main>
+  <script>
+    import '../scripts/login.ts';
+  </script>
+</Layout>
+
+<style>
+  .login-mark { position: relative; flex: 0 0 34px; height: 36px; }
+  .login-mark i { position: absolute; inset: 0 0 auto; height: 20px; background: #528fff; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+  .login-mark i:nth-child(1) { top: 16px; }
+  .login-mark i:nth-child(2) { top: 8px; background: #655bd4; }
+  .login-mark i:nth-child(3) { background: #a08bff; }
+</style>

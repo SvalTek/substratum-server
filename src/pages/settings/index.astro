@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import SettingsPanel from '../../components/operator/SettingsPanel.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="Settings">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>Settings</h1>
+      <p>Review effective server configuration and manage dashboard sessions.</p>
+    </header>
+    <SettingsPanel client:load />
+  </main>
+</DashboardLayout>

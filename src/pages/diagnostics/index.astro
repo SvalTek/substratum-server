@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import DiagnosticsPanel from '../../components/operator/DiagnosticsPanel.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="Diagnostics">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>Diagnostics</h1>
+      <p>Monitor process resources, query performance and runtime indexes.</p>
+    </header>
+    <DiagnosticsPanel client:load />
+  </main>
+</DashboardLayout>

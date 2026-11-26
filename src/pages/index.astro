@@ -1,0 +1,25 @@
+---
+import DashboardLayout from '../layouts/DashboardLayout.astro';
+import OverviewStatus from '../components/overview/OverviewStatus.vue';
+import ContentDistribution from '../components/overview/ContentDistribution.vue';
+import RecentActivity from '../components/overview/RecentActivity.vue';
+import '../styles/overview.css';
+---
+
+<DashboardLayout title="Overview">
+  <main class="overview-page">
+    <header class="overview-heading">
+      <h1>Overview</h1>
+      <p>Substratum Server <span>/</span> Spatial runtime</p>
+    </header>
+    <OverviewStatus client:load />
+    <div class="overview-grid">
+      <ContentDistribution client:load />
+      <RecentActivity client:load />
+    </div>
+    <a class="overview-atlas" href="/atlas">
+      <div><h2>Atlas</h2><p>Inspect spatial cells, attachments and shared content placements.</p></div>
+      <span>Open Atlas <span aria-hidden="true">↗</span></span>
+    </a>
+  </main>
+</DashboardLayout>

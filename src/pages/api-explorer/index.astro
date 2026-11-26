@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import ApiExplorer from '../../components/operator/ApiExplorer.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="API Explorer">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>API Explorer</h1>
+      <p>Inspect the server contracts and run requests with your dashboard session.</p>
+    </header>
+    <ApiExplorer client:load />
+  </main>
+</DashboardLayout>

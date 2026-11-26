@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import QueryWorkbench from '../../components/query/QueryWorkbench.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="Query Workbench">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>Query Workbench</h1>
+      <p>Run spatial and proximity queries against the current runtime.</p>
+    </header>
+    <QueryWorkbench client:load />
+  </main>
+</DashboardLayout>

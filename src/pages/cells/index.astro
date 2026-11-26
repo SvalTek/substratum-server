@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import CellsWorkspace from '../../components/cells/CellsWorkspace.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="Cells & Attachments">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>Cells &amp; Attachments</h1>
+      <p>Inspect spatial addresses, cell metadata, and individual placements.</p>
+    </header>
+    <CellsWorkspace client:load />
+  </main>
+</DashboardLayout>

@@ -1,0 +1,15 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import ContentExplorer from '../../components/content/ContentExplorer.vue';
+import '../../styles/workspace.css';
+---
+
+<DashboardLayout title="Content Explorer">
+  <main class="workspace-page">
+    <header class="workspace-heading">
+      <h1>Content Explorer</h1>
+      <p>Inspect content identities, edit JSON payloads, and find their placements.</p>
+    </header>
+    <ContentExplorer client:load />
+  </main>
+</DashboardLayout>
