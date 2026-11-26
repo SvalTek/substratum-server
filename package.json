@@ -11,7 +11,10 @@
     "preview": "bunx --bun astro preview",
     "astro": "bunx --bun astro",
     "seed:demo": "bun ./scripts/seed-demo.ts",
-    "start": "bun ./dist/server/entry.mjs"
+    "start": "bun ./dist/server/entry.mjs",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "bin": {
     "substratum": "./dist/server/entry.mjs"
@@ -36,6 +39,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@types/bun": "^1.4.5",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitepress": "^1.6.3"
   }
 }

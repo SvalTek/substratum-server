@@ -18,8 +18,8 @@ pnpm-debug.log*
 .env.production
 
 # runtime state
-data/
-plugins/
+/data/
+/plugins/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
@@ -32,3 +32,7 @@ plugins/
 
 # playwright
 .playwright-cli/
+
+# vitepress
+docs/.vitepress/cache/
+docs/.vitepress/dist/
