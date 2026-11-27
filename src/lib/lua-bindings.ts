@@ -38,7 +38,7 @@ function requireServer(): RuntimeService {
 
 function inTransaction<T>(fn: (world: ServerWorld) => T): T {
     const server = requireServer();
-    if (txDepth > 0) return fn(server.world);
+    if (txDepth > 0) return server.world.batch(() => fn(server.world));
     return server.transact(world => {
         txDepth++;
         try { return fn(world); }
@@ -481,10 +481,10 @@ export class SubstratumPluginBindings extends LuaBindings {
         if (typeof event !== 'string' || !event) throw new TypeError('Event name must be a non-empty string.');
         if (typeof handler !== 'function') throw new TypeError('Event handler must be a function.');
         const pluginId = currentPluginStorage.getStore() ?? 'lua';
-        const on = requireServer().world.on as (event: string, listener: (payload: unknown) => void, region?: Region) => () => void;
+        const on = requireServer().world.on as (event: string, listener: (payload: unknown) => void, options?: { region?: Region }) => () => void;
         const dispose = on(event, payload => {
             runInLuaPluginScope(pluginId, () => handler(payload));
-        }, region);
+        }, region ? { region } : undefined);
         return registerDisposer(dispose);
     }
 
