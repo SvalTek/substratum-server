@@ -1,7 +1,7 @@
 import type LuaBridge from 'webluabridge';
 import { createLuaBridge, type LuaExecutionContext } from 'webluabridge';
 import { addActivity } from './activity/journal';
-import { runInLuaPluginScope, setLuaBindingsRuntime, substratumLuaBindings } from './lua-bindings';
+import { runInLuaPluginScope, setLuaBindingsRuntime, setLuaDisposerRegistrar, substratumLuaBindings } from './lua-bindings';
 import { principalContext } from './principal';
 import type { RuntimeService } from './runtime';
 
@@ -100,12 +100,33 @@ export class LuaPluginHost {
     private bridge: LuaBridge | null = null;
     private readonly active = new Map<string, ActiveLuaPlugin>();
     private readonly errors = new Map<string, string>();
+    private readonly pluginLocks = new Map<string, Promise<void>>();
     private activePrintPlugin: string | null = null;
 
     constructor(private readonly server: RuntimeService) {}
 
+    private async withPluginLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+        const previous = this.pluginLocks.get(id) ?? Promise.resolve();
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const chained = previous.then(() => gate);
+        this.pluginLocks.set(id, chained);
+        await previous;
+        try {
+            return await fn();
+        } finally {
+            release();
+            if (this.pluginLocks.get(id) === chained) {
+                this.pluginLocks.delete(id);
+            }
+        }
+    }
+
     async initialize(): Promise<void> {
         setLuaBindingsRuntime(this.server);
+        setLuaDisposerRegistrar((pluginId, dispose) => {
+            this.active.get(pluginId)?.disposers.push(dispose);
+        });
         this.bridge = await createLuaBridge({}, {
             bindings: substratumLuaBindings,
             functionTimeout: 2000,
@@ -382,134 +403,147 @@ export class LuaPluginHost {
         for (const plugin of plugins) await this.loadPlugin(plugin);
     }
 
-    private async unloadPlugin(id: string): Promise<void> {
-        const active = this.active.get(id);
-        if (!active) return;
-        this.active.delete(id);
-        for (const dispose of active.disposers) {
-            try { dispose(); } catch { /* Best-effort cleanup */ }
-        }
-        try {
-            await this.runScoped(id, () => active.context.execute(`
-                local reg = rawget(_G, "__substratum_plugins")
-                local exports = reg and reg[PLUGIN_ID]
-                if type(exports) == "table" and type(exports.shutdown) == "function" then
-                    exports.shutdown()
-                elseif type(OnShutdown) == "function" then
-                    OnShutdown()
-                end
-                if reg then reg[PLUGIN_ID] = nil end
-            `));
-        } catch (error) {
-            this.recordError(id, 'cleanup', error);
-        }
+    private unloadPlugin(id: string): Promise<void> {
+        return this.withPluginLock(id, async () => {
+            const active = this.active.get(id);
+            if (!active) return;
+            this.active.delete(id);
+            for (const dispose of active.disposers) {
+                try { dispose(); } catch { /* Best-effort cleanup */ }
+            }
+            try {
+                await this.runScoped(id, () => active.context.execute(`
+                    local reg = rawget(_G, "__substratum_plugins")
+                    local exports = reg and reg[PLUGIN_ID]
+                    if type(exports) == "table" and type(exports.shutdown) == "function" then
+                        exports.shutdown()
+                    elseif type(OnShutdown) == "function" then
+                        OnShutdown()
+                    end
+                    if reg then reg[PLUGIN_ID] = nil end
+                `));
+            } catch (error) {
+                this.recordError(id, 'cleanup', error);
+            }
+        });
     }
 
-    private async loadPlugin(plugin: LuaPluginEntity): Promise<void> {
-        if (!this.bridge) return;
-        this.errors.delete(plugin.id);
-        const entryFile = plugin.files.find(f => f.path === plugin.entrypoint);
-        if (!entryFile) {
-            this.recordError(plugin.id, 'install', `Entrypoint "${plugin.entrypoint}" not found.`);
-            return;
-        }
-        const env: Record<string, unknown> = {
-            PLUGIN_ID: plugin.id,
-            PLUGIN_NAME: plugin.name,
-            PLUGIN_VERSION: plugin.version,
-        };
-        try {
-            const context = await this.bridge.useEnvironment(env);
-            await this.runScoped(plugin.id, async () => {
-                // Install plugin-scoped require() that resolves plugin-owned modules first, then shared modules.
-                await context.execute(`
-                    local __base_require = require
-                    local __plugin_prefix = "plugins." .. PLUGIN_ID .. "."
-                    local __mod_cache = {}
-                    local function __resolve_vfs(name)
-                        local rel = string.gsub(name, "%.", "/")
-                        if not string.match(rel, "%.lua$") then rel = rel .. ".lua" end
-                        local plugin_path = "plugins/" .. PLUGIN_ID .. "/" .. rel
-                        local f = io.open(plugin_path, "r")
-                        if f then
-                            local src = f:read("*a")
-                            f:close()
-                            return src, plugin_path
-                        end
-                        local shared_path = "shared/" .. rel
-                        local sf = io.open(shared_path, "r")
-                        if sf then
-                            local src = sf:read("*a")
-                            sf:close()
-                            return src, shared_path
-                        end
-                        return nil, nil
-                    end
-                    require = function(name)
-                        if __mod_cache[name] ~= nil then return __mod_cache[name] end
-                        local src, chunkname = __resolve_vfs(name)
-                        if src then
-                            local fn, err = load(src, "@" .. chunkname, "t", _ENV)
-                            if not fn then error(err, 2) end
-                            local res = fn(name)
-                            if res == nil then res = true end
-                            __mod_cache[name] = res
-                            return res
-                        end
-                        return __base_require(name)
-                    end
-                `);
-                await context.execute(`
-                    local reg = rawget(_G, "__substratum_plugins")
-                    if not reg then
-                        reg = {}
-                        rawset(_G, "__substratum_plugins", reg)
-                    end
-                    local __fn, __err = load(..., "@" .. ${JSON.stringify(`plugins/${plugin.id}/${plugin.entrypoint}`)}, "t", _ENV)
-                    if not __fn then error(__err, 2) end
-                    local exports = __fn()
-                    reg[PLUGIN_ID] = exports
-                    if type(exports) == "table" and type(exports.init) == "function" then
-                        exports.init(plugin)
-                    elseif type(OnInit) == "function" then
-                        OnInit(plugin)
-                    end
-                `, entryFile.content);
-            });
-
+    private loadPlugin(plugin: LuaPluginEntity): Promise<void> {
+        return this.withPluginLock(plugin.id, async () => {
+            if (!this.bridge) return;
+            this.errors.delete(plugin.id);
+            const entryFile = plugin.files.find(f => f.path === plugin.entrypoint);
+            if (!entryFile) {
+                this.recordError(plugin.id, 'install', `Entrypoint "${plugin.entrypoint}" not found.`);
+                return;
+            }
+            const env: Record<string, unknown> = {
+                PLUGIN_ID: plugin.id,
+                PLUGIN_NAME: plugin.name,
+                PLUGIN_VERSION: plugin.version,
+            };
             const disposers: (() => void)[] = [];
-            const stopSpatial = this.server.world.on('spatial:change', event => {
-                void this.runScoped(plugin.id, () => context.execute(`
-                    local ev = ...
-                    local reg = rawget(_G, "__substratum_plugins")
-                    local exports = reg and reg[PLUGIN_ID]
-                    if type(exports) == "table" and type(exports.onSpatialChange) == "function" then
-                        exports.onSpatialChange(ev)
-                    elseif type(OnSpatialChange) == "function" then
-                        OnSpatialChange(ev)
-                    end
-                `, { regions: event.regions, changes: event.changes })).catch(error => this.recordError(plugin.id, 'spatial:change', error));
-            });
-            disposers.push(stopSpatial);
+            let activeEntry: ActiveLuaPlugin | undefined;
+            try {
+                const context = await this.bridge.useEnvironment(env);
+                activeEntry = { id: plugin.id, name: plugin.name, env, context, disposers };
+                this.active.set(plugin.id, activeEntry);
+                await this.runScoped(plugin.id, async () => {
+                    // Install plugin-scoped require() that resolves plugin-owned modules first, then shared modules.
+                    await context.execute(`
+                        local __base_require = require
+                        local __plugin_prefix = "plugins." .. PLUGIN_ID .. "."
+                        local __mod_cache = {}
+                        local function __resolve_vfs(name)
+                            local rel = string.gsub(name, "%.", "/")
+                            if not string.match(rel, "%.lua$") then rel = rel .. ".lua" end
+                            local plugin_path = "plugins/" .. PLUGIN_ID .. "/" .. rel
+                            local f = io.open(plugin_path, "r")
+                            if f then
+                                local src = f:read("*a")
+                                f:close()
+                                return src, plugin_path
+                            end
+                            local shared_path = "shared/" .. rel
+                            local sf = io.open(shared_path, "r")
+                            if sf then
+                                local src = sf:read("*a")
+                                sf:close()
+                                return src, shared_path
+                            end
+                            return nil, nil
+                        end
+                        require = function(name)
+                            if __mod_cache[name] ~= nil then return __mod_cache[name] end
+                            local src, chunkname = __resolve_vfs(name)
+                            if src then
+                                local fn, err = load(src, "@" .. chunkname, "t", _ENV)
+                                if not fn then error(err, 2) end
+                                local res = fn(name)
+                                if res == nil then res = true end
+                                __mod_cache[name] = res
+                                return res
+                            end
+                            return __base_require(name)
+                        end
+                    `);
+                    await context.execute(`
+                        local reg = rawget(_G, "__substratum_plugins")
+                        if not reg then
+                            reg = {}
+                            rawset(_G, "__substratum_plugins", reg)
+                        end
+                        local __fn, __err = load(..., "@" .. ${JSON.stringify(`plugins/${plugin.id}/${plugin.entrypoint}`)}, "t", _ENV)
+                        if not __fn then error(__err, 2) end
+                        local exports = __fn()
+                        reg[PLUGIN_ID] = exports
+                        if type(exports) == "table" and type(exports.init) == "function" then
+                            exports.init(plugin)
+                        elseif type(OnInit) == "function" then
+                            OnInit(plugin)
+                        end
+                    `, entryFile.content);
+                });
 
-            const stopUpdate = this.server.world.on('update', dt => {
-                void this.runScoped(plugin.id, () => context.execute(`
-                    local dt = ...
-                    local reg = rawget(_G, "__substratum_plugins")
-                    local exports = reg and reg[PLUGIN_ID]
-                    if type(exports) == "table" and type(exports.update) == "function" then
-                        exports.update(dt)
-                    elseif type(Update) == "function" then
-                        Update(dt)
-                    end
-                `, dt)).catch(error => this.recordError(plugin.id, 'update', error));
-            });
-            disposers.push(stopUpdate);
+                if (this.active.get(plugin.id) !== activeEntry) return;
 
-            this.active.set(plugin.id, { id: plugin.id, name: plugin.name, env, context, disposers });
-        } catch (error) {
-            this.recordError(plugin.id, 'install', error);
-        }
+                const stopSpatial = this.server.world.on('spatial:change', event => {
+                    void this.runScoped(plugin.id, () => context.execute(`
+                        local ev = ...
+                        local reg = rawget(_G, "__substratum_plugins")
+                        local exports = reg and reg[PLUGIN_ID]
+                        if type(exports) == "table" and type(exports.onSpatialChange) == "function" then
+                            exports.onSpatialChange(ev)
+                        elseif type(OnSpatialChange) == "function" then
+                            OnSpatialChange(ev)
+                        end
+                    `, { regions: event.regions, changes: event.changes, transitions: event.transitions })).catch(error => this.recordError(plugin.id, 'spatial:change', error));
+                });
+                disposers.push(stopSpatial);
+
+                const stopUpdate = this.server.world.on('update', dt => {
+                    void this.runScoped(plugin.id, () => context.execute(`
+                        local dt = ...
+                        local reg = rawget(_G, "__substratum_plugins")
+                        local exports = reg and reg[PLUGIN_ID]
+                        if type(exports) == "table" and type(exports.update) == "function" then
+                            exports.update(dt)
+                        elseif type(Update) == "function" then
+                            Update(dt)
+                        end
+                    `, dt)).catch(error => this.recordError(plugin.id, 'update', error));
+                });
+                disposers.push(stopUpdate);
+            } catch (error) {
+                if (activeEntry && this.active.get(plugin.id) === activeEntry) {
+                    this.active.delete(plugin.id);
+                }
+                for (const dispose of disposers) {
+                    try { dispose(); } catch { /* Best-effort cleanup */ }
+                }
+                this.recordError(plugin.id, 'install', error);
+            }
+        });
     }
 
     private async runScoped<T>(id: string, fn: () => Promise<T>): Promise<T> {
@@ -544,6 +578,7 @@ export class LuaPluginHost {
         this.bridge?.onPrint(null);
         this.bridge?.close();
         this.bridge = null;
+        setLuaDisposerRegistrar(null);
         setLuaBindingsRuntime(null);
     }
 }
