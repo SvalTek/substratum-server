@@ -23,6 +23,7 @@ Lua plugins receive three read-only binding namespaces (`world`, `geometry`, `pl
 | `world.orphans()` | — | `string[]` | List all unattached content IDs. |
 | `world.search(region?, options?)` | `Region?, table?` | `table[]` | Search attachments in a region (`options.limit` defaults to `250`). |
 | `world.searchContent(region?, options?)` | `Region?, table?` | `table[]` | Search unique content records in a region (`options.limit` defaults to `250`). |
+| `world.searchCells(region?, options?)` | `Region?, table?` | `table[]` | Search occupied cells in a region (`options.overlap`, `options.limit` defaults to `250`). |
 | `world.nearest(at, options?)` | `number[3], table?` | `table[]` | Find nearest unique content records from `[x, y, z]`. |
 | `world.nearestAttachments(at, options?)` | `number[3], table?` | `table[]` | Find nearest attachment records from `[x, y, z]`. |
 | `world.radius(at, radius, options?)` | `number[3], number, table?` | `table[]` | Find unique content records within `radius` of `[x, y, z]`. |

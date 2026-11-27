@@ -146,6 +146,16 @@ export class SubstratumWorldBindings extends LuaBindings {
     }
 
     @LuaBinding({
+        name: 'searchCells',
+        description: 'Search occupied cells in a region (optional options.overlap and options.limit, default 250).',
+        args: [{ name: 'region', type: 'Region?' }, { name: 'options', type: 'table?' }],
+        returnType: 'table[]',
+    })
+    static searchCells(region?: Region, options?: { overlap?: boolean; limit?: number }) {
+        return take(requireServer().world.searchCells(region, options), options?.limit ?? 250);
+    }
+
+    @LuaBinding({
         name: 'nearest',
         description: 'Find nearest unique content records from an [x, y, z] point.',
         args: [{ name: 'at', type: 'number[3]' }, { name: 'options', type: 'table?' }],
