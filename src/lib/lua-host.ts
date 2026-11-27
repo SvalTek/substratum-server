@@ -1,7 +1,7 @@
 import type LuaBridge from 'webluabridge';
 import { createLuaBridge, type LuaExecutionContext } from 'webluabridge';
 import { addActivity } from './activity/journal';
-import { runInLuaPluginScope, setLuaBindingsRuntime, substratumLuaBindings } from './lua-bindings';
+import { runInLuaPluginScope, setLuaBindingsRuntime, setLuaDisposerRegistrar, substratumLuaBindings } from './lua-bindings';
 import { principalContext } from './principal';
 import type { RuntimeService } from './runtime';
 
@@ -106,6 +106,9 @@ export class LuaPluginHost {
 
     async initialize(): Promise<void> {
         setLuaBindingsRuntime(this.server);
+        setLuaDisposerRegistrar((pluginId, dispose) => {
+            this.active.get(pluginId)?.disposers.push(dispose);
+        });
         this.bridge = await createLuaBridge({}, {
             bindings: substratumLuaBindings,
             functionTimeout: 2000,
@@ -418,8 +421,11 @@ export class LuaPluginHost {
             PLUGIN_NAME: plugin.name,
             PLUGIN_VERSION: plugin.version,
         };
+        const disposers: (() => void)[] = [];
         try {
             const context = await this.bridge.useEnvironment(env);
+            const activeEntry: ActiveLuaPlugin = { id: plugin.id, name: plugin.name, env, context, disposers };
+            this.active.set(plugin.id, activeEntry);
             await this.runScoped(plugin.id, async () => {
                 // Install plugin-scoped require() that resolves plugin-owned modules first, then shared modules.
                 await context.execute(`
@@ -477,7 +483,6 @@ export class LuaPluginHost {
                 `, entryFile.content);
             });
 
-            const disposers: (() => void)[] = [];
             const stopSpatial = this.server.world.on('spatial:change', event => {
                 void this.runScoped(plugin.id, () => context.execute(`
                     local ev = ...
@@ -488,7 +493,7 @@ export class LuaPluginHost {
                     elseif type(OnSpatialChange) == "function" then
                         OnSpatialChange(ev)
                     end
-                `, { regions: event.regions, changes: event.changes })).catch(error => this.recordError(plugin.id, 'spatial:change', error));
+                `, { regions: event.regions, changes: event.changes, transitions: event.transitions })).catch(error => this.recordError(plugin.id, 'spatial:change', error));
             });
             disposers.push(stopSpatial);
 
@@ -505,9 +510,11 @@ export class LuaPluginHost {
                 `, dt)).catch(error => this.recordError(plugin.id, 'update', error));
             });
             disposers.push(stopUpdate);
-
-            this.active.set(plugin.id, { id: plugin.id, name: plugin.name, env, context, disposers });
         } catch (error) {
+            this.active.delete(plugin.id);
+            for (const dispose of disposers) {
+                try { dispose(); } catch { /* Best-effort cleanup */ }
+            }
             this.recordError(plugin.id, 'install', error);
         }
     }
@@ -544,6 +551,7 @@ export class LuaPluginHost {
         this.bridge?.onPrint(null);
         this.bridge?.close();
         this.bridge = null;
+        setLuaDisposerRegistrar(null);
         setLuaBindingsRuntime(null);
     }
 }
